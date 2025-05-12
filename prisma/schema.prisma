@@ -1,0 +1,124 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model TrainingModule {
+  id          String   @id @default(cuid())
+  title       String
+  description String
+  type        String   // video, document, quiz
+  duration    Int      // in minutes
+  isPublic    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  resources   Resource[]
+  quiz        Quiz?
+  progress    ModuleProgress[]
+  assignedTo  User[]    @relation("ModuleAssignments")
+  shareTokens ShareToken[]
+}
+
+model Resource {
+  id        String   @id @default(cuid())
+  title     String
+  type      String   // video, document, link
+  url       String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  module    TrainingModule @relation(fields: [moduleId], references: [id])
+  moduleId  String
+}
+
+model Quiz {
+  id           String   @id @default(cuid())
+  title        String
+  passingScore Int
+  attempts     Int      @default(0)
+  bestScore    Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  module     TrainingModule @relation(fields: [moduleId], references: [id])
+  moduleId   String        @unique
+  questions  Question[]
+  attempts   QuizAttempt[]
+}
+
+model Question {
+  id            String   @id @default(cuid())
+  question      String
+  options       String[]
+  correctAnswer Int
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  quiz    Quiz   @relation(fields: [quizId], references: [id])
+  quizId  String
+}
+
+model ModuleProgress {
+  id        String   @id @default(cuid())
+  progress  Int      @default(0)
+  status    String   // not_started, in_progress, completed
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user    User           @relation(fields: [userId], references: [id])
+  userId  String
+  module  TrainingModule @relation(fields: [moduleId], references: [id])
+  moduleId String
+
+  @@unique([userId, moduleId])
+}
+
+model QuizAttempt {
+  id        String   @id @default(cuid())
+  score     Int
+  answers   Int[]
+  createdAt DateTime @default(now())
+
+  // Relations
+  user    User  @relation(fields: [userId], references: [id])
+  userId  String
+  quiz    Quiz  @relation(fields: [quizId], references: [id])
+  quizId  String
+}
+
+model ShareToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  // Relations
+  module     TrainingModule @relation(fields: [moduleId], references: [id])
+  moduleId   String
+  createdBy  User           @relation(fields: [createdById], references: [id])
+  createdById String
+}
+
+// Update User model to include new relations
+model User {
+  // ... existing fields ...
+
+  // New relations
+  moduleProgress    ModuleProgress[]
+  quizAttempts      QuizAttempt[]
+  moduleAssignments TrainingModule[] @relation("ModuleAssignments")
+  createdShareTokens ShareToken[]
+} 
